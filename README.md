@@ -1,4 +1,4 @@
-# backend-mini
+# authbase-dev-env
 
 Go + React + Nginx + PostgreSQL の Docker Compose 構成テンプレート。JWT 認証サービス込みで即起動できる開発環境。
 
