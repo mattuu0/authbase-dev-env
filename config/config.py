@@ -8,6 +8,31 @@ def generate_random_key(length=64):
     """
     return secrets.token_urlsafe(length)
 
+def get_oauth_credentials(provider_name):
+    """
+    指定されたプロバイダーのOAuthクライアントIDとシークレットをユーザーに入力させます。
+    設定をスキップするオプションも提供します。
+    """
+    print(f"\n--- {provider_name} OAuth 設定 ---")
+    response = input(f"{provider_name} の設定をしますか？ (y/n): ")
+    if response.lower() == 'y':
+        client_id = input(f"{provider_name} のクライアントIDを入力してください: ")
+        client_secret = input(f"{provider_name} のクライアントシークレットを入力してください: ")
+        return client_id, client_secret
+    else:
+        # 'n'が入力された場合は空の文字列を返す
+        return "", ""
+
+def get_admin_credentials():
+    """
+    管理者のメールアドレスを取得し、ランダムなパスワードを生成します。
+    """
+    print(f"\n--- 管理者アカウントの設定 ---")
+    admin_email = input(f"管理者のメールアドレスを入力してください: ")
+    admin_password = generate_random_key(32)  # 管理者パスワードは32文字で生成
+    return admin_email, admin_password
+
+
 def confirm_overwrite_all(files_to_check):
     """
     主要な設定ファイルが存在するかを確認し、上書きするかを尋ねます。
@@ -23,6 +48,59 @@ def confirm_overwrite_all(files_to_check):
             print("ファイルの生成を中止しました。")
             return False
     return True
+
+def create_auth_env(db_type, db_dsn):
+    """
+    auth.env ファイルを生成するための設定情報を対話形式で取得し、ファイルに書き出します。
+    """
+    # 各OAuthプロバイダーの認証情報を対話形式で取得
+    discord_client_id, discord_client_secret = get_oauth_credentials("Discord")
+    google_client_id, google_client_secret = get_oauth_credentials("Google")
+    github_client_id, github_client_secret = get_oauth_credentials("Github")
+    microsoft_client_id, microsoft_client_secret = get_oauth_credentials("Microsoft")
+
+    # 管理者アカウント情報を取得
+    admin_email, admin_password = get_admin_credentials()
+
+    # 認証とセッション用のランダムキーを自動生成（長さ64文字）
+    token_secret_key = generate_random_key()
+    admin_session_key = generate_random_key()
+    bridge_token_secret_key = generate_random_key()
+
+    # auth.env のテンプレート
+    auth_env_template = f"""
+DiscordClientID = {discord_client_id}
+DiscordClientSecret = {discord_client_secret}
+DiscordCallback = https://localhost:8947/auth/oauth/discord/callback
+
+GoogleClientID = {google_client_id}
+GoogleClientSecret = {google_client_secret}
+GoogleCallback = https://localhost:8947/auth/oauth/google/callback
+
+GithubClientID = {github_client_id}
+GithubClientSecret = {github_client_secret}
+GithubCallback = https://localhost:8947/auth/oauth/github/callback
+
+MicrosoftClientID = {microsoft_client_id}
+MicrosoftClientSecret = {microsoft_client_secret}
+MicrosoftCallback = https://localhost:8947/auth/oauth/microsoftonline/callback
+
+AdminEmail = "{admin_email}"
+AdminPassword = "{admin_password}"
+
+DB_TYPE = "{db_type}"
+DB_DSN = "{db_dsn}"
+
+TOKEN_SECRET = {token_secret_key}
+ADMIN_SESSION_KEY = {admin_session_key}
+BRIDGE_TOKEN_SECRET = {bridge_token_secret_key}
+
+GRPC_ADDR = ":9000"
+CUSTOM_SCHEME = "SampleApp"
+LOGIN_REDIRECT_URL = /ui/
+APP_NAME = "SampleApp"
+"""
+    create_env_file("auth.env", auth_env_template)
 
 def create_env_file(file_path, content):
     """
@@ -57,19 +135,8 @@ DB_DSN = host=db user=main password=main dbname=maindb port=5432 sslmode=disable
     # app.env ファイルを生成
     create_env_file("app.env", app_env_template)
 
-    auth_env_template = f"""
-DB_TYPE = postgres
-DB_DSN = host=db user=main password=main dbname=maindb port=5432 sslmode=disable TimeZone=Asia/Tokyo
-
-LOGIN_REDIRECT_URL = /ui/
-APP_NAME = "SampleApp"
-TOKEN_SECRET = "{generate_random_key()}"
-ADMIN_SESSION_KEY = "{generate_random_key()}"
-BRIDGE_TOKEN_SECRET = "{generate_random_key()}"
-"""
-
     # auth.env ファイルを生成
-    create_env_file("auth.env", auth_env_template)
+    create_auth_env("postgres", "host=db user=main password=main dbname=maindb port=5432 sslmode=disable TimeZone=Asia/Tokyo")
 
     print(f"\n--- 設定完了！ ---")
     print(f"設定ファイルがすべて './data' ディレクトリに生成されました。")
