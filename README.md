@@ -1,115 +1,77 @@
-# プロジェクト概要 ✨
+# backend-mini
 
-このプロジェクトは、Docker Compose を利用したマルチサービス Web アプリケーションです。
+Go + React + Nginx + PostgreSQL の Docker Compose 構成テンプレート。JWT 認証サービス込みで即起動できる開発環境。
 
----
+## 技術スタック
 
-## 🛠️ 使用技術
+| レイヤー | 技術 |
+|---------|------|
+| バックエンド | Go, Echo v4 |
+| フロントエンド | React 19, TypeScript, Vite, Tailwind CSS |
+| 認証 | authbase v0.1.6 (JWT / Ed25519) |
+| リバースプロキシ | Nginx (HTTPS, ポート 8955) |
+| データベース | PostgreSQL 18 |
+| DB 管理 | pgAdmin 4 |
+| オーケストレーション | Docker Compose |
+| タスクランナー | Taskfile |
 
-*   **バックエンド:** Go, Echo Web Framework
-*   **フロントエンド:** React, TypeScript, Vite, @react-router, npm
-*   **インフラ:** Docker, Docker Compose, Nginx, OpenSSL
-*   **タスクランナー:** Taskfile
+## アーキテクチャ
 
----
+```
+クライアント
+    │
+    └── https://localhost:8955
+            │
+           Nginx
+            ├── /app/    → Go バックエンド (8080)
+            ├── /auth/   → authbase 認証サービス (8080)
+            ├── /ui/     → React フロントエンド (3000)
+            └── /statics/ → Nginx 直接配信
 
-## 🌐 アプリケーション構成
+http://localhost:8080 → pgAdmin
+```
 
-*   **Go バックエンド (`app`) 🖥️:**
-    Echo フレームワーク製のシンプルな API サーバー。開発中は `air` でライブリロード。
+**データベース構成**
 
+| DB 名 | 用途 |
+|-------|------|
+| `maindb` | アプリケーションデータ |
+| `authdb` | 認証情報 |
+| `temporal` / `temporal_visibility` | ワークフロー管理 (Temporal 向け) |
 
-*   **React フロントエンド (`frontend`) ⚛️:**
-    React と `@react-router` を使用したウェブアプリ。Vite で開発。
+## 起動方法
 
+**前提条件:** Docker, Docker Compose, Taskfile, Python 3, OpenSSL
 
-*   **Nginx (`nginx`) 🕸️:**
-    リバースプロキシとして機能し、トラフィックを振り分けます。
-    自己署名SSL証明書 (HTTPS) を使用し、ポート `8443` でリクエストを受け付けます。
+```bash
+task setup
+```
 
+SSL 証明書と JWT キーの生成・Docker イメージのビルド・全サービスの起動をまとめて実行します。
 
-*   **OpenSSL (`openssl`) 🔑:**
-    Nginx 用の SSL 証明書と JWT 認証用の Ed25519 キーを生成します。
+## アクセス先
 
----
+| サービス | URL |
+|---------|-----|
+| フロントエンド | https://localhost:8955/ui/ |
+| バックエンド API | https://localhost:8955/app/ |
+| 認証 | https://localhost:8955/auth/ |
+| 静的ファイル | https://localhost:8955/statics/ |
+| pgAdmin | http://localhost:8080 |
 
-## 🚦 Nginx リバースプロキシ設定
+自己署名証明書を使用しているため、ブラウザの警告は無視して進んでください。
 
-Nginx はポート `8443` で HTTPS リクエストを受け付け、以下のルーティングを行います。
+## コマンド一覧
 
-*   `/app/` へのリクエスト: Go バックエンド (`app` サービス) のポート `8080` へプロキシ。
-*   `/ui/` へのリクエスト: React フロントエンド (`frontend` サービス) のポート `3000` へプロキシ。
-*   `/statics/` へのリクエスト: Nginx コンテナ内の `/var/www/nginx/` ディレクトリから静的ファイルを直接配信。
-    **フロントエンドのコードは `/statics/ からは提供されません。**
+| コマンド | 説明 |
+|---------|------|
+| `task setup` | キー生成 → ビルド → 起動（初回はこれだけ） |
+| `task config` | 環境変数ファイルを生成 |
+| `task genkey` | SSL 証明書と JWT キーを生成 |
+| `task reset` | コンテナを完全削除して再セットアップ |
+| `task release` | 本番向けイメージをビルド |
+| `task logs` | 全サービスのログをリアルタイム表示 |
+| `task logs:frontend` | フロントエンドのログのみ表示 |
+| `task logs:backend` | バックエンドのログのみ表示 |
 
----
-
-# 環境設定 ⚙️
-
-プロジェクトの設定と実行には、[Taskfile](https://taskfile.dev) を使用します。
-
-Taskfile の詳細はこちら: `https://taskfile.dev`
-
-1.  **初期セットアップ:**
-
-    必要なキーの生成と全サービスの起動を行うには、次のコマンドを実行します。
-
-    ```bash
-    task setup
-    ```
-
-    このコマンドは以下の処理を実行します。
-
-    *   SSL 証明書 (`server.crt`, `server.key`) と Ed25519 キーペアを生成し、`nginx/keys` および `openssl/jwtKeys` に保存。
-    *   Go バックエンド、React フロントエンド、Nginx の Docker イメージをビルド。
-    *   `docker compose up -d` を使用して、全サービスをデタッチモードで起動。
-
-
-2.  **アプリケーションへのアクセス:**
-
-    *   **フロントエンド UI 💡:**
-        `https://localhost:8443/ui/` にアクセス。
-
-    *   **バックエンド API 🔗:**
-        `https://localhost:8443/app/` を介して API エンドポイントにアクセス。
-        
-        例: `https://localhost:8443/app/` で Go バックエンドのルートエンドポイントにヒット。
-
-    *   **Nginx 静的ファイル 📂:**
-        `https://localhost:8443/statics/` から Nginx が直接配信する静的コンテンツにアクセス。
-
----
-
-# コマンド一覧 📋
-
-## 一般的なコマンド (Taskfile と Docker Compose)
-
-*   **`task setup`** ▶️:
-    (推奨) キーを生成し、全サービスをデタッチモードで起動。
-
-*   **`task genkey`** 🔑:
-    SSL 証明書と JWT キーを生成します (`task setup` が自動で呼び出し)。
-
-*   **`docker compose up -d`** ⬆️:
-    `docker-compose.yaml` で定義された全サービスをデタッチモードで起動。
-
-*   **`docker compose up`** 🚀:
-    全サービスをフォアグラウンドで起動 (ログの直接確認に便利)。
-
-*   **`docker compose down`** ⬇️:
-    `docker compose up` で作成された全サービスを停止・削除。
-
-*   **`docker compose build`** 🏗️:
-    サービスイメージをビルドまたはリビルド。クリーンなリビルドは `docker compose build --no-cache`。
-
-*   **`docker compose logs -f`** 📝:
-    全サービスのログを追跡。
-
-*   **`task logs`** 📜:
-    全サービスのログをリアルタイムで表示します。
-
-*   **`task logs:frontend`** 🌐📝:
-    フロントエンドサービスのログをリアルタイムで表示します。
-
-*   **`task logs:backend`** 🖥️📝:
-    バックエンドサービスのログをリアルタイムで表示します。
+停止するには `docker compose down`。
