@@ -20,3 +20,4 @@ app/src/tmp/
 config/app.env
 config/database.env
 config/auth.env
+auth/icons/*.png
