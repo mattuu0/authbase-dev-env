@@ -62,7 +62,7 @@ DB_TYPE = postgres
 DB_DSN = host=db user=main password=main dbname=maindb port=5432 sslmode=disable TimeZone=Asia/Tokyo
 
 LOGIN_REDIRECT_URL = /ui/
-APP_NAME = "launchs-org"
+APP_NAME = "SampleApp"
 TOKEN_SECRET = "{generate_random_key()}"
 ADMIN_SESSION_KEY = "{generate_random_key()}"
 BRIDGE_TOKEN_SECRET = "{generate_random_key()}"
