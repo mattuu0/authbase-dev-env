@@ -32,24 +32,6 @@ def create_env_file(file_path, content):
         file.write(content.strip())
     print(f"✅ ファイル '{file_path}' を生成しました。")
 
-def create_database_env():
-    """
-    database.env を自動生成する
-    """
-
-    # データベースのパスワードを自動生成（長さ64文字）
-    db_password = generate_random_key()
-
-    # auth.env のテンプレート
-    auth_env_template = f"""
-MYSQL_DATABASE = root
-MYSQL_USER = app
-MYSQL_ROOT_PASSWORD = {db_password}
-"""
-    create_env_file("database.env", auth_env_template)
-
-    return db_password
-
 def main():
     """
     メイン処理：複数の設定ファイル生成関数を呼び出します。
@@ -62,20 +44,32 @@ def main():
     print("--- OAuth およびアプリケーション設定の開始 ---")
 
     # ファイルの上書き確認を行い、許可されない場合は終了
-    files_to_check = ["database.env", "app.env"]
+    files_to_check = ["auth.env", "app.env"]
     if not confirm_overwrite_all(files_to_check):
         return
 
-    # database.env ファイルを生成
-    db_password = create_database_env()
-
     # app.env のテンプレート
     app_env_template = f"""
-DATABASE_URI="app:{db_password}@tcp(db:3306)/app?charset=utf8mb4&parseTime=True&loc=Local"
+DB_TYPE = postgres
+DB_DSN = host=db user=main password=main dbname=maindb port=5432 sslmode=disable TimeZone=Asia/Tokyo
 """
 
     # app.env ファイルを生成
     create_env_file("app.env", app_env_template)
+
+    auth_env_template = f"""
+DB_TYPE = postgres
+DB_DSN = host=db user=main password=main dbname=maindb port=5432 sslmode=disable TimeZone=Asia/Tokyo
+
+LOGIN_REDIRECT_URL = /ui/
+APP_NAME = "launchs-org"
+TOKEN_SECRET = "{generate_random_key()}"
+ADMIN_SESSION_KEY = "{generate_random_key()}"
+BRIDGE_TOKEN_SECRET = "{generate_random_key()}"
+"""
+
+    # auth.env ファイルを生成
+    create_env_file("auth.env", auth_env_template)
 
     print(f"\n--- 設定完了！ ---")
     print(f"設定ファイルがすべて './data' ディレクトリに生成されました。")
